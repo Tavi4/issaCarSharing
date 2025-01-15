@@ -1,5 +1,7 @@
 from PyQt5 import QtCore, QtWidgets
 from queryUI import MainWindow
+import socket
+import json
 
 class LoginWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -41,16 +43,33 @@ class LoginWindow(QtWidgets.QMainWindow):
         self.login_button.clicked.connect(self.handle_login)
 
     def handle_login(self):
-        # implementare cu mysql maybe later ?
         username = self.username_input.text()
         password = self.password_input.text()
 
-        if username == "" and password == "":
-            self.main_window = MainWindow()
+        response = self.send_request({
+            "action": "login",
+            "username": username,
+            "password": password
+        })
+
+        if response.get("status") == "success":
+            self.main_window = MainWindow(username)
             self.main_window.show()
             self.close()
         else:
-            QtWidgets.QMessageBox.warning(self, "Error", "Invalid Username or Password")
+            QtWidgets.QMessageBox.warning(self, "Error", response.get("message"))
+
+    def send_request(self, request):
+        try:
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.connect(("127.0.0.1", 12345))  # Portul serverului
+            client.send(json.dumps(request).encode())
+            response = json.loads(client.recv(1024).decode())
+            client.close()
+            return response
+        except Exception as e:
+            print(f"Error: {e}")
+            return {"status": "error", "message": "Server unavailable"}
 
 if __name__ == "__main__":
     import sys
